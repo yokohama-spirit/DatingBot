@@ -286,11 +286,9 @@ namespace TelegramBot.Services
         {
             try
             {
-                // 1. Получаем сырой JSON
                 var response = await _httpClient.GetAsync($"/api/profile/{chatId}", ct);
                 var json = await response.Content.ReadAsStringAsync();
 
-                // 2. Десериализуем вручную с правильными настройками
                 var profile = JsonSerializer.Deserialize<Profile>(json, new JsonSerializerOptions
                 {
                     PropertyNameCaseInsensitive = true,
@@ -303,40 +301,37 @@ namespace TelegramBot.Services
                     return;
                 }
 
-                // 3. Отправляем текст
-                await _botClient.SendMessage(
-                    chatId,
-                    $"👤 Имя: {profile.Name}\n" +
-                    $"🎂 Возраст: {profile.Age}\n" +
-                    $"🏙 Город: {profile.City}\n\n" +
-                    $"📝 О себе: {profile.Bio ?? "Не указано"}",
-                    cancellationToken: ct);
 
-                // 4. Отправляем фото (если есть)
-                if (profile.Photos?.Count > 0)
+                var caption = $"{profile.Name}, {profile.Age}, {profile.City} – {profile.Bio ?? "Без описания"}";
+
+
+                var photos = profile.Photos;
+
+                if (photos.Count > 0)
                 {
-                    var photos = profile.Photos
-                        .Where(p => !string.IsNullOrEmpty(p.FileId))
-                        .Select(p => new InputMediaPhoto(InputFile.FromFileId(p.FileId)))
-                        .ToArray();
+                    var mediaGroup = photos
+                        .Select((photo, index) =>
+                        {
+                            var media = new InputMediaPhoto(new InputFileId(photo.FileId));
+                            if (index == 0) media.Caption = caption;
+                            return media;
+                        })
+                        .ToList();
 
-                    if (photos.Length > 0)
-                        await _botClient.SendMediaGroup(chatId, photos, cancellationToken: ct);
-                    else
-                        await _botClient.SendMessage(chatId, "📷 Некорректные данные фото", cancellationToken: ct);
+                    await _botClient.SendMediaGroup(
+                        chatId: chatId,
+                        media: mediaGroup,
+                        cancellationToken: ct);
                 }
                 else
                 {
-                    await _botClient.SendMessage(chatId, "📷 Фотографии отсутствуют", cancellationToken: ct);
+                    await _botClient.SendMessage(chatId, caption, cancellationToken: ct);
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[ERROR] {ex}");
-                await _botClient.SendMessage(
-                    chatId,
-                    "⚠️ Ошибка при загрузке профиля",
-                    cancellationToken: ct);
+                await _botClient.SendMessage(chatId, "⚠️ Ошибка при загрузке профиля", cancellationToken: ct);
             }
         }
 

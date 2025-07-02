@@ -36,6 +36,13 @@ builder.Services.AddMediatR(cfg =>
 });
 
 
+//Redis
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = builder.Configuration.GetConnectionString("Redis");
+});
+
+
 // Mapp settings
 builder.Services.AddAutoMapper(typeof(UserProfile));
 
