@@ -1,0 +1,6 @@
+@DatingBotAPI_HostAddress = http://localhost:5147
+
+GET {{DatingBotAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

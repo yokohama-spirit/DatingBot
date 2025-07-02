@@ -1,0 +1,97 @@
+### ASP.NET Core ###
+**/[Bb]in/
+**/[Oo]bj/
+**/wwwroot/lib/
+**/.vs/
+**/launchSettings.json
+*.user
+*.suo
+*.userprefs
+*.userosscache
+*.sln.iml
+*.csproj.user
+*.ncrunchsolution
+*.ncrunchproject
+*.dotCover
+*.resharper
+*.vspscc
+*.vssscc
+*.sql
+*.pdb
+*.cache
+*.log
+
+### Build results ###
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+artifacts/
+publish/
+_ReSharper.*/
+*.msi
+*.msix
+*.msp
+*.s
+
+### NuGet ###
+**/.nuget/
+*.nupkg
+nuget.exe
+**/packages/
+!**/packages.build.transitive/
+**/NuGet.Config
+**/NuGet.exe
+**/NuGet.targets
+
+### PostgreSQL ###
+**/.psql/
+**/pgdata/
+**/postgres_data/
+*.pid
+*.postgres
+
+### Telegram Bot ###
+**/bot_config.json
+**/secrets/
+
+### IDE ###
+.idea/
+.vscode/
+.vs/
+*.swp
+*.swo
+*.sublime-workspace
+*.sublime-project
+
+### Environment ###
+.env
+.env.local
+.env.development
+.env.production
+.DS_Store
+docker-compose.override.yml
+*.bak
+*.tmp
+*.orig
+Thumbs.db
+
+### Logs ###
+*.log
+*.log.*
+[Nn]pm-[Dd]ebug.log*
+logs/
+*.csv
+
+### Docker ###
+**/docker-compose.*.yml
+**/.dockerignore
+**/Dockerfile
+**/docker-compose.yml
