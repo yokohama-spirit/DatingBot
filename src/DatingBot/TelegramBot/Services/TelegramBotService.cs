@@ -110,7 +110,9 @@ namespace TelegramBot.Services
         {
             _state[chatId] = new CreateProfileState
             {
-                Step = 1
+                Step = 1,
+                PhotoFileId = new List<string>(),
+                VideoFileId = new List<string>()
             };
 
             await _botClient.SendMessage(
@@ -161,8 +163,7 @@ namespace TelegramBot.Services
                     new KeyboardButton[] { "Пропустить" }
                     })
                     {
-                        ResizeKeyboard = true,
-                        OneTimeKeyboard = true
+                        ResizeKeyboard = true
                     };
                     await _botClient.SendMessage(
                     chatId: chatId,
@@ -192,7 +193,7 @@ namespace TelegramBot.Services
 
                     await _botClient.SendMessage(
                     chatId: chatId,
-                    text: "Отправьте фотографию для своей анкеты.",
+                    text: "Отправьте фотографию/видео для своей анкеты.",
                     cancellationToken: ct);
 
                     state.Step = 5;
@@ -203,45 +204,147 @@ namespace TelegramBot.Services
                     if (message.Type == MessageType.Photo && message.Photo != null && message.Photo.Length > 0)
                     {
                         var photo = message.Photo.Last();
-                        state.PhotoFileId = photo.FileId;
+                        state.PhotoFileId?.Add(photo.FileId);
                         state.Step = 6;
+
+
+
+                        var replyMediaKeyboard = new ReplyKeyboardMarkup(new[]
+                        {
+                        new KeyboardButton[] { "Пропустить" }
+                        })
+                        {
+                            ResizeKeyboard = true
+                        };
+
 
                         await _botClient.SendMessage(
                             chatId: chatId,
-                            text: "Фото сохранено. Хотите добавить видео? (Отправьте видео или нажмите /skip чтобы пропустить)",
+                            text: "Фото сохранено 1 из 3, хотите добавить еще фото/видео?",
+                            replyMarkup: replyMediaKeyboard,
+                            cancellationToken: ct);
+                    }
+                    else if (message.Type == MessageType.Video && message.Video != null)
+                    {
+                        var video = message.Video;
+                        state.VideoFileId?.Add(video.FileId);
+                        state.Step = 6;
+
+
+                        var replyMediaKeyboard = new ReplyKeyboardMarkup(new[]
+                        {
+                        new KeyboardButton[] { "Пропустить" }
+                        })
+                        {
+                            ResizeKeyboard = true
+                        };
+
+
+                        await _botClient.SendMessage(
+                            chatId: chatId,
+                            text: "Видео сохранено 1 из 3, хотите добавить еще фото/видео?",
+                            replyMarkup: replyMediaKeyboard,
                             cancellationToken: ct);
                     }
                     else
                     {
                         await _botClient.SendMessage(
                             chatId: chatId,
-                            text: "Пожалуйста, отправьте фотографию.",
+                            text: "Пожалуйста, отправьте фото/видео.",
                             cancellationToken: ct);
                     }
                     break;
 
                 case 6:
-                    if (message.Text?.Equals("/skip", StringComparison.OrdinalIgnoreCase) == true)
+                    if (message.Text?.Equals("Пропустить", StringComparison.OrdinalIgnoreCase) == true)
                     {
                         await CreationFinalStep(
                             state.Name, state.Age, state.City,
                             state.Desc, userId, chatId,
-                            state.PhotoFileId, "none", ct);
+                            state.PhotoFileId, state.VideoFileId, ct);
+                    }
+                    else if (message.Type == MessageType.Photo && message.Photo != null && message.Photo.Length > 0)
+                    {
+                        var photo = message.Photo.Last();
+                        state.PhotoFileId?.Add(photo.FileId);
+                        state.Step = 7;
+
+
+
+                        var replyMediaKeyboard = new ReplyKeyboardMarkup(new[]
+                        {
+                        new KeyboardButton[] { "Пропустить" }
+                        })
+                        {
+                            ResizeKeyboard = true
+                        };
+
+
+                        await _botClient.SendMessage(
+                            chatId: chatId,
+                            text: "Фото сохранено 2 из 3, хотите добавить еще фото/видео?",
+                            replyMarkup: replyMediaKeyboard,
+                            cancellationToken: ct);
                     }
                     else if (message.Type == MessageType.Video && message.Video != null)
                     {
-                        await CreationFinalStep(
-                            state.Name, state.Age, state.City,
-                            state.Desc, userId, chatId,
-                            state.PhotoFileId, message.Video.FileId, ct);
+                        var video = message.Video;
+                        state.VideoFileId?.Add(video.FileId);
+                        state.Step = 7;
+
+
+                        var replyMediaKeyboard = new ReplyKeyboardMarkup(new[]
+                        {
+                        new KeyboardButton[] { "Пропустить" }
+                        })
+                        {
+                            ResizeKeyboard = true
+                        };
+
+
+                        await _botClient.SendMessage(
+                            chatId: chatId,
+                            text: "Видео сохранено 2 из 3, хотите добавить еще фото/видео?",
+                            replyMarkup: replyMediaKeyboard,
+                            cancellationToken: ct);
                     }
                     else
                     {
                         await _botClient.SendMessage(
                             chatId: chatId,
-                            text: "Пожалуйста, отправьте видео или нажмите /skip чтобы пропустить",
+                            text: "Пожалуйста, отправьте фото/видео.",
                             cancellationToken: ct);
                     }
+                    break;
+                case 7:
+                    if (message.Text?.Equals("Пропустить", StringComparison.OrdinalIgnoreCase) == true)
+                    {
+                        await CreationFinalStep(
+                            state.Name, state.Age, state.City,
+                            state.Desc, userId, chatId,
+                            state.PhotoFileId, state.VideoFileId, ct);
+                    }
+                    else if (message.Type == MessageType.Photo && message.Photo != null && message.Photo.Length > 0)
+                    {
+                        var photo = message.Photo.Last();
+                        state.PhotoFileId?.Add(photo.FileId);
+
+                        await CreationFinalStep(
+                        state.Name, state.Age, state.City,
+                        state.Desc, userId, chatId,
+                        state.PhotoFileId, state.VideoFileId, ct);
+                    }
+                    else if (message.Type == MessageType.Video && message.Video != null)
+                    {
+                        var video = message.Video;
+                        state.VideoFileId?.Add(video.FileId);
+
+                        await CreationFinalStep(
+                        state.Name, state.Age, state.City,
+                        state.Desc, userId, chatId,
+                        state.PhotoFileId, state.VideoFileId, ct);
+                    }
+
                     break;
 
                 default:
@@ -260,8 +363,8 @@ namespace TelegramBot.Services
             string? desc,
             long userId,
             long chatId,
-            string? pfileId,
-            string? vfileId,
+            List<string>? pfileIds,
+            List<string>? vfileIds,
             CancellationToken ct)
         {
             var command = new Profile
@@ -276,32 +379,44 @@ namespace TelegramBot.Services
                 Videos = new List<Video>()
             };
 
-            if (pfileId != "none")
+            if (pfileIds != null)
             {
-                command.Photos.Add(new Photo { FileId = pfileId });
+                foreach(var fileId in pfileIds)
+                {
+                    command.Photos.Add(new Photo { FileId = fileId });
+                }
             }
 
-            if (vfileId != "none")
+            if (vfileIds != null)
             {
-                command.Videos.Add(new Video { FileId = vfileId });
+                foreach (var fileId in vfileIds)
+                {
+                    command.Videos.Add(new Video { FileId = fileId });
+                }
             }
 
             var response = await _httpClient.PostAsJsonAsync("/api/profile", command, ct);
             if (response.IsSuccessStatusCode)
             {
+                var removeKeyboard = new ReplyKeyboardRemove();
+                
                 await _botClient.SendMessage(
                     chatId: chatId,
                     text: "Ваша анкета успешно создана!",
+                    replyMarkup: removeKeyboard,
                     cancellationToken: ct);
             }
             else
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
                 Console.WriteLine($"[API ERROR] StatusCode: {(int)response.StatusCode}, Content: {errorContent}");
-
+                
+                var removeKeyboard = new ReplyKeyboardRemove();
+                
                 await _botClient.SendMessage(
                     chatId: chatId,
                     text: "❌ Ошибка при добавлении",
+                    replyMarkup: removeKeyboard,
                     cancellationToken: ct);
             }
 

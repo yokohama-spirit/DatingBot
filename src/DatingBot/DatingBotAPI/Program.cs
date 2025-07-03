@@ -28,15 +28,6 @@ builder.Services.AddScoped<IProfileRepository, ProfileRepository>();
 
 
 
-//Redis
-builder.Services.AddStackExchangeRedisCache(options =>
-{
-    options.Configuration = builder.Configuration.GetConnectionString("Redis");
-});
-
-
-
-
 
 var app = builder.Build();
 
