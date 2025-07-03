@@ -6,11 +6,11 @@ using TelegramBot.Interfaces;
 using TelegramBot.Config;
 using TelegramBot.Config.State;
 using Telegram.Bot.Types.ReplyMarkups;
-using DatingBotLibrary.Application.Requests;
 using DatingBotLibrary.Domain.Entities;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using System.Text.Json.Serialization;
 using System.Text.Json;
+using Video = DatingBotLibrary.Domain.Entities.Video;
 
 namespace TelegramBot.Services
 {
@@ -200,23 +200,48 @@ namespace TelegramBot.Services
                     break;
 
                 case 5:
+                    if (message.Type == MessageType.Photo && message.Photo != null && message.Photo.Length > 0)
+                    {
+                        var photo = message.Photo.Last();
+                        state.PhotoFileId = photo.FileId;
+                        state.Step = 6;
 
-                    if (message.Type != MessageType.Photo || message.Photo == null || message.Photo.Length == 0)
+                        await _botClient.SendMessage(
+                            chatId: chatId,
+                            text: "Фото сохранено. Хотите добавить видео? (Отправьте видео или нажмите /skip чтобы пропустить)",
+                            cancellationToken: ct);
+                    }
+                    else
                     {
                         await _botClient.SendMessage(
                             chatId: chatId,
-                            text: "Пожалуйста, отправьте именно фотографию (не текст и не стикер).",
+                            text: "Пожалуйста, отправьте фотографию.",
                             cancellationToken: ct);
-                        return;
                     }
+                    break;
 
-                    var photo = message.Photo.Last();
-                    Console.WriteLine($"Received message type: {message.Type}");
-
-                    await CreationFinalStep
-                        (state.Name, state.Age, state.City,
-                        state.Desc, userId, chatId, photo.FileId, ct);
-
+                case 6:
+                    if (message.Text?.Equals("/skip", StringComparison.OrdinalIgnoreCase) == true)
+                    {
+                        await CreationFinalStep(
+                            state.Name, state.Age, state.City,
+                            state.Desc, message.From.Id, chatId,
+                            state.PhotoFileId, "none", ct);
+                    }
+                    else if (message.Type == MessageType.Video && message.Video != null)
+                    {
+                        await CreationFinalStep(
+                            state.Name, state.Age, state.City,
+                            state.Desc, message.From.Id, chatId,
+                            state.PhotoFileId, message.Video.FileId, ct);
+                    }
+                    else
+                    {
+                        await _botClient.SendMessage(
+                            chatId: chatId,
+                            text: "Пожалуйста, отправьте видео или нажмите /skip чтобы пропустить",
+                            cancellationToken: ct);
+                    }
                     break;
 
                 default:
@@ -228,14 +253,15 @@ namespace TelegramBot.Services
             }
         }
 
-        private async Task CreationFinalStep
-            (string name, 
+        private async Task CreationFinalStep(
+            string name,
             int age,
             string city,
             string desc,
             long userId,
             long chatId,
-            string fileId,
+            string pfileId,
+            string vfileId,
             CancellationToken ct)
         {
             var command = new Profile
@@ -245,34 +271,38 @@ namespace TelegramBot.Services
                 City = city,
                 UserId = userId,
                 ChatId = chatId,
-                Bio = desc
+                Bio = desc,
+                Photos = new List<Photo>(),
+                Videos = new List<Video>()
             };
 
-            command.Photos.Add(new Photo
+            if (pfileId != "none")
             {
-                FileId = fileId
-            });
+                command.Photos.Add(new Photo { FileId = pfileId });
+            }
 
+            if (vfileId != "none")
+            {
+                command.Videos.Add(new Video { FileId = vfileId });
+            }
 
             var response = await _httpClient.PostAsJsonAsync("/api/profile", command, ct);
             if (response.IsSuccessStatusCode)
             {
                 await _botClient.SendMessage(
-                chatId: chatId,
-                text: "Ваша анкета успешно создана!",
-                cancellationToken: ct);
+                    chatId: chatId,
+                    text: "Ваша анкета успешно создана!",
+                    cancellationToken: ct);
             }
             else
             {
-
                 var errorContent = await response.Content.ReadAsStringAsync();
                 Console.WriteLine($"[API ERROR] StatusCode: {(int)response.StatusCode}, Content: {errorContent}");
 
-
                 await _botClient.SendMessage(
-                chatId: chatId,
-                text: "❌ Ошибка при добавлении",
-                cancellationToken: ct);
+                    chatId: chatId,
+                    text: "❌ Ошибка при добавлении",
+                    cancellationToken: ct);
             }
 
             _state.Remove(chatId);
@@ -301,23 +331,31 @@ namespace TelegramBot.Services
                     return;
                 }
 
-
                 var caption = $"{profile.Name}, {profile.Age}, {profile.City} – {profile.Bio ?? "Без описания"}";
 
+                // Создаем список медиа элементов
+                var mediaGroup = new List<IAlbumInputMedia>();
 
-                var photos = profile.Photos;
-
-                if (photos.Count > 0)
+                // Добавляем фото
+                foreach (var photo in profile.Photos)
                 {
-                    var mediaGroup = photos
-                        .Select((photo, index) =>
-                        {
-                            var media = new InputMediaPhoto(new InputFileId(photo.FileId));
-                            if (index == 0) media.Caption = caption;
-                            return media;
-                        })
-                        .ToList();
+                    mediaGroup.Add(new InputMediaPhoto(new InputFileId(photo.FileId))
+                    {
+                        Caption = mediaGroup.Count == 0 ? caption : null
+                    });
+                }
 
+                // Добавляем видео
+                foreach (var video in profile.Videos)
+                {
+                    mediaGroup.Add(new InputMediaVideo(new InputFileId(video.FileId))
+                    {
+                        Caption = mediaGroup.Count == 0 ? caption : null
+                    });
+                }
+
+                if (mediaGroup.Count > 0)
+                {
                     await _botClient.SendMediaGroup(
                         chatId: chatId,
                         media: mediaGroup,
@@ -325,13 +363,19 @@ namespace TelegramBot.Services
                 }
                 else
                 {
-                    await _botClient.SendMessage(chatId, caption, cancellationToken: ct);
+                    await _botClient.SendMessage(
+                        chatId: chatId,
+                        text: caption,
+                        cancellationToken: ct);
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[ERROR] {ex}");
-                await _botClient.SendMessage(chatId, "⚠️ Ошибка при загрузке профиля", cancellationToken: ct);
+                await _botClient.SendMessage(
+                    chatId: chatId,
+                    text: "⚠️ Ошибка при загрузке профиля",
+                    cancellationToken: ct);
             }
         }
 

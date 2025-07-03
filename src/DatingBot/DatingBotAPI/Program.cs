@@ -1,7 +1,5 @@
-using DatingBotLibrary.Application.Requests;
 using DatingBotLibrary.Domain.Interfaces;
 using DatingBotLibrary.Infrastructure.Data;
-using DatingBotLibrary.Infrastructure.Data.Mapper;
 using DatingBotLibrary.Infrastructure.Repos;
 using Microsoft.EntityFrameworkCore;
 
@@ -29,12 +27,6 @@ builder.Services.AddScoped<IProfileRepository, ProfileRepository>();
 
 
 
-//Mediator
-builder.Services.AddMediatR(cfg =>
-{
-    cfg.RegisterServicesFromAssembly(typeof(CreateProfileRequest).Assembly);
-});
-
 
 //Redis
 builder.Services.AddStackExchangeRedisCache(options =>
@@ -43,8 +35,7 @@ builder.Services.AddStackExchangeRedisCache(options =>
 });
 
 
-// Mapp settings
-builder.Services.AddAutoMapper(typeof(UserProfile));
+
 
 
 var app = builder.Build();

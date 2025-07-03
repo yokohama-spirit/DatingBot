@@ -2,6 +2,7 @@
 using DatingBotLibrary.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -10,9 +11,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DatingBotLibrary.Migrations
 {
     [DbContext(typeof(DatabaseConnect))]
-    partial class DatabaseConnectModelSnapshot : ModelSnapshot
+    [Migration("20250703102023_AddedVideos")]
+    partial class AddedVideos
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -86,7 +89,7 @@ namespace DatingBotLibrary.Migrations
 
                     b.HasIndex("ProfileId");
 
-                    b.ToTable("Videos");
+                    b.ToTable("Video");
                 });
 
             modelBuilder.Entity("DatingBotLibrary.Domain.Entities.Photo", b =>

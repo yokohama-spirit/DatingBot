@@ -7,5 +7,6 @@
         public int Age { get; set; }
         public string? City { get; set; }
         public string? Desc { get; set; }
+        public string? PhotoFileId { get; set; }
     }
 }

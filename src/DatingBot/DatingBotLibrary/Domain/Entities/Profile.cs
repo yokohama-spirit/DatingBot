@@ -16,5 +16,6 @@ namespace DatingBotLibrary.Domain.Entities
         public required string City { get; set; }
         public string? Bio { get; set; }
         public List<Photo> Photos { get; set; } = new();
+        public List<Video> Videos { get; set; } = new();
     }
 }

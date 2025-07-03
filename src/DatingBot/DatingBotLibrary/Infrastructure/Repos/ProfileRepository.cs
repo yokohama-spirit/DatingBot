@@ -30,9 +30,9 @@ namespace DatingBotLibrary.Infrastructure.Repos
 
         public async Task<Profile> CheckMyProfile(long chatId)
         {
-            var cacheKey = $"my_profile:{chatId}";
+/*            var cacheKey = $"my_profile:{chatId}";
 
-            // Настройки сериализации (добавьте в класс или используйте глобальные)
+
             var serializerOptions = new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true,
@@ -40,7 +40,7 @@ namespace DatingBotLibrary.Infrastructure.Repos
                 WriteIndented = false
             };
 
-            // Проверяем кэш
+
             var cachedData = await _redisCache.GetStringAsync(cacheKey);
 
             if (!string.IsNullOrEmpty(cachedData))
@@ -51,19 +51,19 @@ namespace DatingBotLibrary.Infrastructure.Repos
                 }
                 catch (JsonException)
                 {
-                    // Если данные в кэше повреждены - игнорируем и загружаем заново
                     await _redisCache.RemoveAsync(cacheKey);
                 }
-            }
+            }*/
 
-            // Получаем из базы
+
             var profile = await _conn.Profiles
                 .Include(p => p.Photos)
+                .Include(p => p.Videos)
                 .FirstOrDefaultAsync(p => p.ChatId == chatId)
                 ?? throw new Exception("Профиль не найден");
 
-            // Кэшируем с настройками
-            var cacheOptions = new DistributedCacheEntryOptions
+
+/*            var cacheOptions = new DistributedCacheEntryOptions
             {
                 AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(3)
             };
@@ -71,20 +71,55 @@ namespace DatingBotLibrary.Infrastructure.Repos
             await _redisCache.SetStringAsync(
                 cacheKey,
                 JsonSerializer.Serialize(profile, serializerOptions),
-                cacheOptions);
+                cacheOptions);*/
 
             return profile;
         }
 
         public async Task CreateProfile(Profile profile)
         {
-            await _conn.Profiles.AddAsync(profile);
+            var existingProfile = await _conn.Profiles
+                .Include(p => p.Photos)
+                .Include(p => p.Videos)
+                .FirstOrDefaultAsync(p => p.ChatId == profile.ChatId);
+
+            if (existingProfile != null)
+            {
+
+                existingProfile.Name = profile.Name;
+                existingProfile.Age = profile.Age;
+                existingProfile.City = profile.City;
+                existingProfile.Bio = profile.Bio;
+
+
+                existingProfile.Photos.Clear();
+                existingProfile.Videos.Clear();
+
+
+                foreach (var photo in profile.Photos)
+                {
+                    existingProfile.Photos.Add(photo);
+                }
+
+                foreach (var video in profile.Videos)
+                {
+                    existingProfile.Videos.Add(video);
+                }
+            }
+            else
+            {
+                await _conn.Profiles.AddAsync(profile);
+            }
+
             await _conn.SaveChangesAsync();
         }
 
         public async Task<IEnumerable<Profile>> GetAllProfiles()
         {
-            return await _conn.Profiles.Include(p => p.Photos).ToListAsync();
+            return await _conn.Profiles
+                .Include(p => p.Photos)
+                .Include(p => p.Videos)
+                .ToListAsync();
         }
     }
 }

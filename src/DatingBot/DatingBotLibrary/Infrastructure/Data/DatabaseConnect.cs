@@ -15,5 +15,6 @@ namespace DatingBotLibrary.Infrastructure.Data
 
         public DbSet<Profile> Profiles { get; set; }
         public DbSet<Photo> Photos { get; set; }
+        public DbSet<Video> Videos { get; set; }
     }
 }

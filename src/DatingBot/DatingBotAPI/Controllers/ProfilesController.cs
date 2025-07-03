@@ -1,5 +1,4 @@
-﻿using DatingBotLibrary.Application.Requests;
-using DatingBotLibrary.Domain.Entities;
+﻿using DatingBotLibrary.Domain.Entities;
 using DatingBotLibrary.Domain.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.Http;
@@ -11,34 +10,13 @@ namespace DatingBotAPI.Controllers
     [ApiController]
     public class ProfilesController : ControllerBase
     {
-        private readonly IMediator _mediator;
         private readonly IProfileRepository _rep;
         public ProfilesController
-            (IMediator mediator,
-            IProfileRepository rep)
+            (IProfileRepository rep)
         {
-            _mediator = mediator;
             _rep = rep;
         }
 
-        [HttpDelete]
-        public async Task<IActionResult> CreateProfile([FromBody] CreateProfileRequest command)
-        {
-            if (!ModelState.IsValid)
-            {
-                var error = ModelState.Values.SelectMany(e => e.Errors.Select(er => er.ErrorMessage));
-                return BadRequest($"Некорректно указаны данные! Ошибка: {error}");
-            }
-            try
-            {
-                await _mediator.Send(command);
-                return Ok();
-            }
-            catch (Exception ex)
-            {
-                return BadRequest($"Ошибка: {ex}");
-            }
-        }
 
 
         [HttpPost]
