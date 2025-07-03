@@ -225,14 +225,14 @@ namespace TelegramBot.Services
                     {
                         await CreationFinalStep(
                             state.Name, state.Age, state.City,
-                            state.Desc, message.From.Id, chatId,
+                            state.Desc, userId, chatId,
                             state.PhotoFileId, "none", ct);
                     }
                     else if (message.Type == MessageType.Video && message.Video != null)
                     {
                         await CreationFinalStep(
                             state.Name, state.Age, state.City,
-                            state.Desc, message.From.Id, chatId,
+                            state.Desc, userId, chatId,
                             state.PhotoFileId, message.Video.FileId, ct);
                     }
                     else
@@ -254,14 +254,14 @@ namespace TelegramBot.Services
         }
 
         private async Task CreationFinalStep(
-            string name,
+            string? name,
             int age,
-            string city,
-            string desc,
+            string? city,
+            string? desc,
             long userId,
             long chatId,
-            string pfileId,
-            string vfileId,
+            string? pfileId,
+            string? vfileId,
             CancellationToken ct)
         {
             var command = new Profile
@@ -331,12 +331,14 @@ namespace TelegramBot.Services
                     return;
                 }
 
-                var caption = $"{profile.Name}, {profile.Age}, {profile.City} – {profile.Bio ?? "Без описания"}";
+                var caption = profile.Bio != null && !profile.Bio.Equals("Не указано", StringComparison.OrdinalIgnoreCase)
+                    ? $"{profile.Name}, {profile.Age}, {profile.City} – {profile.Bio}"
+                    : $"{profile.Name}, {profile.Age}, {profile.City}";
 
-                // Создаем список медиа элементов
+
                 var mediaGroup = new List<IAlbumInputMedia>();
 
-                // Добавляем фото
+
                 foreach (var photo in profile.Photos)
                 {
                     mediaGroup.Add(new InputMediaPhoto(new InputFileId(photo.FileId))
@@ -345,7 +347,7 @@ namespace TelegramBot.Services
                     });
                 }
 
-                // Добавляем видео
+
                 foreach (var video in profile.Videos)
                 {
                     mediaGroup.Add(new InputMediaVideo(new InputFileId(video.FileId))

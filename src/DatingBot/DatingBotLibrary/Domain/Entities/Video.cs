@@ -9,7 +9,7 @@ namespace DatingBotLibrary.Domain.Entities
     public class Video
     {
         public string Id { get; set; } = Guid.NewGuid().ToString();
-        public required string FileId { get; set; }
+        public string? FileId { get; set; }
         public string? ProfileId { get; set; }
         public Profile? UserProfile { get; set; }
     }
