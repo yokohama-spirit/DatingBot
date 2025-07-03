@@ -66,26 +66,35 @@ namespace TelegramBot.Services
                 return;
             }
 
-            if (message.Text is { } text)
+            if (message.Text is not { } text)
+                return;
+
+
+            switch (text)
             {
-                switch (text)
-                {
-                    case "/start":
-                        await HandleStartCommand(chatId, ct);
-                        break;
+                case "/start":
+                case "Главное меню":
+                    await HandleStartCommand(chatId, ct);
+                    break;
 
-                    case "/create":
-                        await HandleCreateCommand(chatId, ct);
-                        break;
+                case "☃️ Создать анкету":
+                    await HandleCreateCommand(chatId, ct);
+                    break;
 
-                    case "/check":
-                        await SendUserProfile(chatId, ct);
-                        break;
+                case "👤 Моя анкета":
+                    await SendUserProfile(chatId, ct);
+                    break;
 
-                    default:
-                        await HandleDefaultCommand(chatId, ct);
-                        break;
-                }
+                case "Тест":
+                    await _botClient.SendMessage(
+                        chatId: chatId,
+                        text: "Тестовая кнопка работает!",
+                        cancellationToken: ct);
+                    break;
+
+                default:
+                    await HandleDefaultCommand(chatId, ct);
+                    break;
             }
 
         }
@@ -96,11 +105,20 @@ namespace TelegramBot.Services
         {
             var chat = await _botClient.GetChat(chatId, ct);
 
+
+            var replyKeyboard = new ReplyKeyboardMarkup(new[]
+            {
+            new KeyboardButton[] { "☃️ Создать анкету", "👤 Моя анкета" }
+            })
+            {
+                ResizeKeyboard = true,
+                OneTimeKeyboard = false 
+            };
+
             await _botClient.SendMessage(
                 chatId: chatId,
-                text: $"Привет, {chat.FirstName ?? "друг"}! Я - бот для знакомств!\n" +
-                $"/create - создание анкеты\n" +
-                $"/check - просмотр своей анкеты",
+                text: $"Привет, {chat.FirstName ?? "друг"}! Я - бот для знакомств!",
+                replyMarkup: replyKeyboard,
                 cancellationToken: ct);
         }
 
@@ -115,9 +133,12 @@ namespace TelegramBot.Services
                 VideoFileId = new List<string>()
             };
 
+            var removeKeyboard = new ReplyKeyboardRemove();
+
             await _botClient.SendMessage(
                 chatId: chatId,
                 text: "Как вас зовут?",
+                replyMarkup: removeKeyboard,
                 cancellationToken: ct);
         }
         public async Task HandleCreateInputCommand(long chatId, Message message, CancellationToken ct)
@@ -399,12 +420,31 @@ namespace TelegramBot.Services
             if (response.IsSuccessStatusCode)
             {
                 var removeKeyboard = new ReplyKeyboardRemove();
-                
+
                 await _botClient.SendMessage(
                     chatId: chatId,
                     text: "Ваша анкета успешно создана!",
                     replyMarkup: removeKeyboard,
                     cancellationToken: ct);
+
+                var replyMediaKeyboard = new ReplyKeyboardMarkup(new[]
+                {
+                new[] //сверху
+                {
+                new KeyboardButton("🚀 Смотреть анкеты"),
+                new KeyboardButton("👤 Моя анкета"),
+                new KeyboardButton("Тест")
+                }
+                })
+                {
+                    ResizeKeyboard = true
+                };
+
+                await _botClient.SendMessage(
+                chatId: chatId,
+                text: "Начинайте искать людей, удачи!",
+                replyMarkup: replyMediaKeyboard,
+                cancellationToken: ct);
             }
             else
             {
