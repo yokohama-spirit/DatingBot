@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DatingBotLibrary.Domain.Entities.Enum;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,6 +16,8 @@ namespace DatingBotLibrary.Domain.Entities
         public int Age { get; set; }
         public string? City { get; set; }
         public string? Bio { get; set; }
+        public Gender? Gender { get; set; }
+        public Gender? InInterests { get; set; }
         public List<Photo> Photos { get; set; } = new();
         public List<Video> Videos { get; set; } = new();
     }

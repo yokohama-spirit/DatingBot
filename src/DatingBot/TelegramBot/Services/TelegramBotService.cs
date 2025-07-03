@@ -11,6 +11,7 @@ using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using System.Text.Json.Serialization;
 using System.Text.Json;
 using Video = DatingBotLibrary.Domain.Entities.Video;
+using DatingBotLibrary.Domain.Entities.Enum;
 
 namespace TelegramBot.Services
 {
@@ -85,12 +86,6 @@ namespace TelegramBot.Services
                     await SendUserProfile(chatId, ct);
                     break;
 
-                case "Тест":
-                    await _botClient.SendMessage(
-                        chatId: chatId,
-                        text: "Тестовая кнопка работает!",
-                        cancellationToken: ct);
-                    break;
 
                 default:
                     await HandleDefaultCommand(chatId, ct);
@@ -212,27 +207,139 @@ namespace TelegramBot.Services
                         cancellationToken: ct);
 
 
+                    var replyGenderKeyboard = new ReplyKeyboardMarkup(new[]
+                    {
+                    new[] //сверху
+                    {
+                    new KeyboardButton("Девушка"),
+                    new KeyboardButton("Парень")
+                    }
+                    })
+                    {
+                        ResizeKeyboard = true
+                    };
+
                     await _botClient.SendMessage(
                     chatId: chatId,
-                    text: "Отправьте фотографию/видео для своей анкеты.",
+                    text: "Какого вы пола?",
+                    replyMarkup: replyGenderKeyboard,
                     cancellationToken: ct);
 
                     state.Step = 5;
 
                     break;
 
+
+
                 case 5:
+                    if (message.Text?.Equals("Девушка", StringComparison.OrdinalIgnoreCase) == true)
+                    {
+                        state.Gender = DatingBotLibrary.Domain.Entities.Enum.Gender.Female;
+
+                        var replyInterestsKeyboard = new ReplyKeyboardMarkup(new[]
+                        {
+                        new[] //сверху
+                        {
+                        new KeyboardButton("Девушки"),
+                        new KeyboardButton("Парни")
+                        }
+                        })
+                        {
+                            ResizeKeyboard = true
+                        };
+
+                        await _botClient.SendMessage(
+                        chatId: chatId,
+                        text: "Кто вам интересен?",
+                        replyMarkup: replyInterestsKeyboard,
+                        cancellationToken: ct);
+
+                        state.Step = 6;
+                    }
+                    else if (message.Text?.Equals("Парень", StringComparison.OrdinalIgnoreCase) == true)
+                    {
+                        state.Gender = DatingBotLibrary.Domain.Entities.Enum.Gender.Male;
+
+                        var replyInterestsKeyboard = new ReplyKeyboardMarkup(new[]
+                        {
+                        new[] //сверху
+                        {
+                        new KeyboardButton("Девушки"),
+                        new KeyboardButton("Парни")
+                        }
+                        })
+                        {
+                            ResizeKeyboard = true
+                        };
+
+                        await _botClient.SendMessage(
+                        chatId: chatId,
+                        text: "Кто вам интересен?",
+                        replyMarkup: replyInterestsKeyboard,
+                        cancellationToken: ct);
+
+                        state.Step = 6;
+                    }
+                    else
+                    {
+                        await _botClient.SendMessage(
+                            chatId: chatId,
+                            text: "Пожалуйста, выберите свой пол.",
+                            cancellationToken: ct);
+                    }
+                    break;
+
+                case 6:
+                    if (message.Text?.Equals("Девушки", StringComparison.OrdinalIgnoreCase) == true)
+                    {
+                        state.InInterests = DatingBotLibrary.Domain.Entities.Enum.Gender.Female;
+
+                        var removeFemaleKeyboard = new ReplyKeyboardRemove();
+
+                        await _botClient.SendMessage(
+                        chatId: chatId,
+                        text: "Отправьте фотографию/видео для своей анкеты.",
+                        replyMarkup: removeFemaleKeyboard,
+                        cancellationToken: ct);
+
+                        state.Step = 7;
+                    }
+                    else if (message.Text?.Equals("Парни", StringComparison.OrdinalIgnoreCase) == true)
+                    {
+                        state.InInterests = DatingBotLibrary.Domain.Entities.Enum.Gender.Male;
+
+                        var removeMaleKeyboard = new ReplyKeyboardRemove();
+
+                        await _botClient.SendMessage(
+                        chatId: chatId,
+                        text: "Отправьте фотографию/видео для своей анкеты.",
+                        replyMarkup: removeMaleKeyboard,
+                        cancellationToken: ct);
+
+                        state.Step = 7;
+                    }
+                    else
+                    {
+                        await _botClient.SendMessage(
+                            chatId: chatId,
+                            text: "Пожалуйста, выберите свой пол.",
+                            cancellationToken: ct);
+                    }
+                    break;
+
+
+                case 7:
                     if (message.Type == MessageType.Photo && message.Photo != null && message.Photo.Length > 0)
                     {
                         var photo = message.Photo.Last();
                         state.PhotoFileId?.Add(photo.FileId);
-                        state.Step = 6;
+                        state.Step = 8;
 
 
 
                         var replyMediaKeyboard = new ReplyKeyboardMarkup(new[]
                         {
-                        new KeyboardButton[] { "Пропустить" }
+                        new KeyboardButton[] { "Сохранить" }
                         })
                         {
                             ResizeKeyboard = true
@@ -249,12 +356,12 @@ namespace TelegramBot.Services
                     {
                         var video = message.Video;
                         state.VideoFileId?.Add(video.FileId);
-                        state.Step = 6;
+                        state.Step = 8;
 
 
                         var replyMediaKeyboard = new ReplyKeyboardMarkup(new[]
                         {
-                        new KeyboardButton[] { "Пропустить" }
+                        new KeyboardButton[] { "Сохранить" }
                         })
                         {
                             ResizeKeyboard = true
@@ -276,25 +383,26 @@ namespace TelegramBot.Services
                     }
                     break;
 
-                case 6:
-                    if (message.Text?.Equals("Пропустить", StringComparison.OrdinalIgnoreCase) == true)
+                case 8:
+                    if (message.Text?.Equals("Сохранить", StringComparison.OrdinalIgnoreCase) == true)
                     {
                         await CreationFinalStep(
                             state.Name, state.Age, state.City,
                             state.Desc, userId, chatId,
-                            state.PhotoFileId, state.VideoFileId, ct);
+                            state.PhotoFileId, state.VideoFileId,
+                            state.Gender, state.InInterests, ct);
                     }
                     else if (message.Type == MessageType.Photo && message.Photo != null && message.Photo.Length > 0)
                     {
                         var photo = message.Photo.Last();
                         state.PhotoFileId?.Add(photo.FileId);
-                        state.Step = 7;
+                        state.Step = 9;
 
 
 
                         var replyMediaKeyboard = new ReplyKeyboardMarkup(new[]
                         {
-                        new KeyboardButton[] { "Пропустить" }
+                        new KeyboardButton[] { "Сохранить" }
                         })
                         {
                             ResizeKeyboard = true
@@ -311,12 +419,12 @@ namespace TelegramBot.Services
                     {
                         var video = message.Video;
                         state.VideoFileId?.Add(video.FileId);
-                        state.Step = 7;
+                        state.Step = 9;
 
 
                         var replyMediaKeyboard = new ReplyKeyboardMarkup(new[]
                         {
-                        new KeyboardButton[] { "Пропустить" }
+                        new KeyboardButton[] { "Сохранить" }
                         })
                         {
                             ResizeKeyboard = true
@@ -337,13 +445,15 @@ namespace TelegramBot.Services
                             cancellationToken: ct);
                     }
                     break;
-                case 7:
-                    if (message.Text?.Equals("Пропустить", StringComparison.OrdinalIgnoreCase) == true)
+
+                case 9:
+                    if (message.Text?.Equals("Сохранить", StringComparison.OrdinalIgnoreCase) == true)
                     {
                         await CreationFinalStep(
                             state.Name, state.Age, state.City,
                             state.Desc, userId, chatId,
-                            state.PhotoFileId, state.VideoFileId, ct);
+                            state.PhotoFileId, state.VideoFileId, 
+                            state.Gender, state.InInterests, ct);
                     }
                     else if (message.Type == MessageType.Photo && message.Photo != null && message.Photo.Length > 0)
                     {
@@ -351,9 +461,10 @@ namespace TelegramBot.Services
                         state.PhotoFileId?.Add(photo.FileId);
 
                         await CreationFinalStep(
-                        state.Name, state.Age, state.City,
-                        state.Desc, userId, chatId,
-                        state.PhotoFileId, state.VideoFileId, ct);
+                            state.Name, state.Age, state.City,
+                            state.Desc, userId, chatId,
+                            state.PhotoFileId, state.VideoFileId,
+                            state.Gender, state.InInterests, ct);
                     }
                     else if (message.Type == MessageType.Video && message.Video != null)
                     {
@@ -361,9 +472,10 @@ namespace TelegramBot.Services
                         state.VideoFileId?.Add(video.FileId);
 
                         await CreationFinalStep(
-                        state.Name, state.Age, state.City,
-                        state.Desc, userId, chatId,
-                        state.PhotoFileId, state.VideoFileId, ct);
+                            state.Name, state.Age, state.City,
+                            state.Desc, userId, chatId,
+                            state.PhotoFileId, state.VideoFileId,
+                            state.Gender, state.InInterests, ct);
                     }
 
                     break;
@@ -386,6 +498,8 @@ namespace TelegramBot.Services
             long chatId,
             List<string>? pfileIds,
             List<string>? vfileIds,
+            Gender? gender,
+            Gender? inInterests,
             CancellationToken ct)
         {
             var command = new Profile
@@ -396,6 +510,8 @@ namespace TelegramBot.Services
                 UserId = userId,
                 ChatId = chatId,
                 Bio = desc,
+                Gender = gender,
+                InInterests = inInterests,
                 Photos = new List<Photo>(),
                 Videos = new List<Video>()
             };
@@ -432,8 +548,7 @@ namespace TelegramBot.Services
                 new[] //сверху
                 {
                 new KeyboardButton("🚀 Смотреть анкеты"),
-                new KeyboardButton("👤 Моя анкета"),
-                new KeyboardButton("Тест")
+                new KeyboardButton("👤 Моя анкета")
                 }
                 })
                 {
