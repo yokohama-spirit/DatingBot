@@ -1,17 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore;
-using DatingBotLibrary.Domain.Entities;
-using DatingBotLibrary.Domain.Interfaces;
+﻿using DatingBotLibrary.Domain.Interfaces;
 using DatingBotLibrary.Infrastructure.Data;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 using Profile = DatingBotLibrary.Domain.Entities.Profile;
-using Microsoft.Extensions.Caching.Distributed;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace DatingBotLibrary.Infrastructure.Repos
 {
@@ -48,6 +38,8 @@ namespace DatingBotLibrary.Infrastructure.Repos
                 existingProfile.Age = profile.Age;
                 existingProfile.City = profile.City;
                 existingProfile.Bio = profile.Bio;
+                existingProfile.Gender = profile.Gender;
+                existingProfile.InInterests = profile.InInterests;
 
 
                 existingProfile.Photos.Clear();

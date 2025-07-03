@@ -24,7 +24,7 @@ builder.Services.AddDbContext<DatabaseConnect>(options =>
 
 // DI
 builder.Services.AddScoped<IProfileRepository, ProfileRepository>();
-
+builder.Services.AddScoped<IProfilesSearchRepository, ProfilesSearchRepository>();
 
 
 
