@@ -22,6 +22,9 @@ namespace TelegramBot.Services
         private readonly HttpClient _httpClient;
         private readonly Dictionary<long, CreateProfileState> _state;
         private readonly Dictionary<long, List<Profile>> _datingProfiles;
+        private readonly Dictionary<long, Profile> _likes;
+        private readonly Dictionary<long, Profile> _mutually;
+        private readonly Dictionary<long, List<Profile>> _checkLikes;
 
         public TelegramBotService
             (TelegramBotConfig config)
@@ -31,6 +34,9 @@ namespace TelegramBot.Services
             _httpClient = new HttpClient { BaseAddress = new Uri(_config.ApiBaseUrl) };
             _state = new Dictionary<long, CreateProfileState>();
             _datingProfiles = new Dictionary<long, List<Profile>>();
+            _checkLikes = new Dictionary<long, List<Profile>>();
+            _likes = new Dictionary<long, Profile>();
+            _mutually = new Dictionary<long, Profile>();
         }
 
 
@@ -80,6 +86,10 @@ namespace TelegramBot.Services
                             await HandleCreateCommand(chatId, ct);
                             break;
 
+                        case "📝 Заполнить анкету заново":
+                            await HandleCreateCommand(chatId, ct);
+                            break;
+
                         case "👤 Моя анкета":
                             await SendUserProfile(chatId, ct);
                             break;
@@ -89,15 +99,25 @@ namespace TelegramBot.Services
                             break;
 
                         case "❤️ Лайк":
-                            await _botClient.SendMessage(
-                                chatId: chatId,
-                                text: "Вы поставили лайк! ❤️",
-                                cancellationToken: ct);
+                            await LikesHandler(chatId, ct);
                             await ShowRandomProfile(chatId, ct);
                             break;
 
                         case "👎 Дизлайк":
                             await ShowRandomProfile(chatId, ct);
+                            break;
+
+                        case "Посмотреть":
+                            await StartLikesViewing(chatId, ct);
+                            break;
+
+                        case "❤️ Взаимно":
+                            await MutuallyHandler(chatId, ct);
+                            await ShowLikesProfiles(chatId, ct);
+                            break;
+
+                        case "💔 Невзаимно":
+                            await NonMutuallyHandler(chatId, ct);
                             break;
 
                         case "🚫 Прекратить просмотр":
@@ -202,6 +222,7 @@ namespace TelegramBot.Services
             var profile = profiles.First();
             _datingProfiles[chatId] = profiles.Skip(1).ToList();
 
+            _likes[chatId] = profile;
 
             var caption = $"{profile.Name}, {profile.Age}, {profile.City}";
             if (!string.IsNullOrEmpty(profile.Bio) && !profile.Bio.Equals("Не указано"))
@@ -218,8 +239,241 @@ namespace TelegramBot.Services
 
             })
             {
-                ResizeKeyboard = true,
-                OneTimeKeyboard = true
+                ResizeKeyboard = true
+            };
+
+
+            if (profile.Photos.Any() || profile.Videos.Any())
+            {
+                var mediaGroup = new List<IAlbumInputMedia>();
+
+
+                foreach (var photo in profile.Photos.Take(10))
+                {
+                    mediaGroup.Add(new InputMediaPhoto(new InputFileId(photo.FileId))
+                    {
+                        Caption = mediaGroup.Count == 0 ? caption : null
+                    });
+                }
+
+
+                foreach (var video in profile.Videos.Take(10 - mediaGroup.Count))
+                {
+                    mediaGroup.Add(new InputMediaVideo(new InputFileId(video.FileId))
+                    {
+                        Caption = mediaGroup.Count == 0 ? caption : null
+                    });
+                }
+
+                if (mediaGroup.Count > 0)
+                {
+                    await _botClient.SendMediaGroup(
+                        chatId: chatId,
+                        media: mediaGroup,
+                        cancellationToken: ct);
+
+
+                    await _botClient.SendMessage(
+                        chatId: chatId,
+                        text: "Выберите действие:",
+                        replyMarkup: replyMarkup,
+                        cancellationToken: ct);
+                }
+            }
+            else
+            {
+                await _botClient.SendMessage(
+                    chatId: chatId,
+                    text: caption,
+                    replyMarkup: replyMarkup,
+                    cancellationToken: ct);
+            }
+        }
+
+
+
+        private async Task LikesHandler(long chatId, CancellationToken ct)
+        {
+            if (_likes.TryGetValue(chatId, out var profile))
+            {
+                try
+                {
+                    var response = await _httpClient.GetAsync($"/api/profile/{chatId}", ct);
+                    var json = await response.Content.ReadAsStringAsync();
+
+                    var me = JsonSerializer.Deserialize<Profile>(json, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true,
+                        ReferenceHandler = ReferenceHandler.Preserve
+                    });
+
+                    if (me == null)
+                    {
+                        await _botClient.SendMessage(chatId, "Профиль не найден", cancellationToken: ct);
+                        return;
+                    }
+
+                    var putResponse = await _httpClient.PutAsync(
+                        $"/api/likes/u/{chatId}/{profile.ChatId}",
+                        null,  
+                        ct);
+
+                    if (putResponse.IsSuccessStatusCode)
+                    {
+                        await _botClient.SendMessage(
+                            chatId: chatId,
+                            text: "Лайк поставлен!",
+                            cancellationToken: ct);
+                            _likes.Remove(chatId); 
+                    }
+                    else
+                    {
+                        await _botClient.SendMessage(
+                            chatId: chatId,
+                            text: "⚠️ Ошибка при сохранении лайка",
+                            cancellationToken: ct);
+                    }
+
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[ERROR] {ex}");
+                    await _botClient.SendMessage(
+                        chatId: chatId,
+                        text: "⚠️ Ошибка",
+                        cancellationToken: ct);
+                }
+
+
+
+                var replyKeyboard = new ReplyKeyboardMarkup(new[]
+                {
+                    new[] 
+                    {
+                    new KeyboardButton("Посмотреть"),
+                    new KeyboardButton("Неинтересно")
+                    }
+                    })
+                {
+                    ResizeKeyboard = true
+                };
+
+                await _botClient.SendMessage(
+                chatId: profile.ChatId,
+                text: "Вами кто-то заинтересовался!",
+                replyMarkup: replyKeyboard,
+                cancellationToken: ct);
+            }
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        private async Task StartLikesViewing(long chatId, CancellationToken ct)
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync($"/api/likes/s/{chatId}", ct);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    await _botClient.SendMessage(
+                        chatId: chatId,
+                        text: "Ошибка при загрузке анкет",
+                        cancellationToken: ct);
+                    return;
+                }
+
+                var content = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Raw API response: {content}");
+
+
+                var profiles = JsonSerializer.Deserialize<List<Profile>>(
+                    content,
+                    new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    }) ?? new List<Profile>();
+
+                if (!profiles.Any())
+                {
+                    await _botClient.SendMessage(
+                        chatId: chatId,
+                        text: "Нет подходящих анкет. Попробуйте позже или измените параметры поиска.",
+                        cancellationToken: ct);
+                    return;
+                }
+
+                _checkLikes[chatId] = profiles;
+                await ShowLikesProfiles(chatId, ct);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] {ex}");
+                await _botClient.SendMessage(
+                    chatId: chatId,
+                    text: "⚠️ Ошибка при загрузке анкет",
+                    cancellationToken: ct);
+            }
+        }
+        private async Task ShowLikesProfiles(long chatId, CancellationToken ct)
+        {
+            if (!_checkLikes.TryGetValue(chatId, out var profiles) || !profiles.Any())
+            {
+                var replyLikesMarkup = new ReplyKeyboardMarkup(new[]
+                {
+                new[]
+                {
+                new KeyboardButton("🚀 Смотреть анкеты"),
+                new KeyboardButton("👤 Моя анкета")
+                }
+                })
+                {
+                    ResizeKeyboard = true
+                };
+
+
+                await _botClient.SendMessage(
+                    chatId: chatId,
+                    text: "Анкеты закончились",
+                    replyMarkup: replyLikesMarkup,
+                    cancellationToken: ct);
+                return;
+            }
+
+            var profile = profiles.First();
+            _checkLikes[chatId] = profiles.Skip(1).ToList();
+
+            _mutually[chatId] = profile;
+
+            var caption = $"{profile.Name}, {profile.Age}, {profile.City}";
+            if (!string.IsNullOrEmpty(profile.Bio) && !profile.Bio.Equals("Не указано"))
+            {
+                caption += $" - {profile.Bio}";
+            }
+
+
+            var replyMarkup = new ReplyKeyboardMarkup(new[]
+{
+                    new[]
+                    {
+                    new KeyboardButton("❤️ Взаимно"),
+                    new KeyboardButton("💔 Невзаимно")
+                    }
+                    })
+            {
+                ResizeKeyboard = true
             };
 
 
@@ -273,21 +527,151 @@ namespace TelegramBot.Services
 
 
 
+        private async Task MutuallyHandler(long chatId, CancellationToken ct)
+        {
+            if (!_mutually.TryGetValue(chatId, out var profile)) return;
+
+            try
+            {
+                var response = await _httpClient.GetAsync($"/api/profile/{chatId}", ct);
+                var json = await response.Content.ReadAsStringAsync();
+
+                var currentUser = JsonSerializer.Deserialize<Profile>(json, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    ReferenceHandler = ReferenceHandler.Preserve
+                });
+
+
+                if (currentUser == null || profile == null)
+                {
+                    await _botClient.SendMessage(chatId, "Профиль не найден", cancellationToken: ct);
+                    return;
+                }
+
+
+                var deleteResponse = await _httpClient.PutAsync(
+                    $"/api/likes/d/{currentUser.UserId}/{profile.UserId}",  
+                    null,
+                    ct);
+
+                if (!deleteResponse.IsSuccessStatusCode)
+                {
+                    await _botClient.SendMessage(chatId, "Ошибка при обработке", cancellationToken: ct);
+                    return;
+                }
+
+
+
+
+                string userLink = $"tg://user?id={profile.UserId}";
+                string htmlMessage =
+                    $"Отлично! Начинай общаться с <a href=\"{userLink}\">{HtmlEscape(profile.Name)}</a>!";
+
+                await _botClient.SendMessage(
+                    chatId: chatId,
+                    text: htmlMessage,
+                    parseMode: ParseMode.Html,
+                    cancellationToken: ct);
+
+
+                string otherUserLink = $"tg://user?id={currentUser.UserId}";
+                string otherHtmlMessage =
+                    $"Вам ответили взаимностью! Начинай общаться с <a href=\"{otherUserLink}\">{HtmlEscape(currentUser.Name)}</a>!";
+
+                var replyKeyboard = new ReplyKeyboardMarkup(new[]
+                {
+                new[]
+                {
+                new KeyboardButton("🚀 Смотреть анкеты"),
+                new KeyboardButton("👤 Моя анкета")
+                }
+                })
+                {
+                    ResizeKeyboard = true
+                };
+
+                await _botClient.SendMessage(
+                    chatId: profile.ChatId,
+                    text: otherHtmlMessage,
+                    parseMode: ParseMode.Html,
+                    replyMarkup: replyKeyboard,
+                    cancellationToken: ct);
+
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] {ex}");
+                await _botClient.SendMessage(
+                    chatId: chatId,
+                    text: "⚠️ Произошла ошибка",
+                    cancellationToken: ct);
+            }
+            finally
+            {
+                _mutually.Remove(chatId);
+            }
+        }
+
+
+        private static string HtmlEscape(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+
+            return text
+                .Replace("&", "&amp;")
+                .Replace("<", "&lt;")
+                .Replace(">", "&gt;")
+                .Replace("\"", "&quot;");
+        }
 
 
 
 
 
 
+        private async Task NonMutuallyHandler(long chatId, CancellationToken ct)
+        {
+            if (!_mutually.TryGetValue(chatId, out var profile)) return;
 
+            try
+            {
+                var response = await _httpClient.GetAsync($"/api/profile/{chatId}", ct);
+                var json = await response.Content.ReadAsStringAsync();
 
+                var currentUser = JsonSerializer.Deserialize<Profile>(json, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    ReferenceHandler = ReferenceHandler.Preserve
+                });
 
+                var deleteResponse = await _httpClient.PutAsync(
+                    $"/api/likes/d/{currentUser.UserId}/{profile.UserId}",
+                    null,
+                    ct);
 
+                if (!deleteResponse.IsSuccessStatusCode)
+                {
+                    await _botClient.SendMessage(chatId, "Ошибка при обработке", cancellationToken: ct);
+                    return;
+                }
 
-
-
-
-
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] {ex}");
+                await _botClient.SendMessage(
+                    chatId: chatId,
+                    text: "⚠️ Произошла ошибка",
+                    cancellationToken: ct);
+            }
+            finally
+            {
+                _mutually.Remove(chatId);
+                await ShowLikesProfiles(chatId, ct);
+            }
+        }
 
 
 
@@ -833,6 +1217,26 @@ namespace TelegramBot.Services
                         chatId: chatId,
                         media: mediaGroup,
                         cancellationToken: ct);
+
+
+                    var replyKeyboard = new ReplyKeyboardMarkup(new[]
+                    {
+                    new[]
+                    {
+                    new KeyboardButton("🚀 Смотреть анкеты"),
+                    new KeyboardButton("📝 Заполнить анкету заново")
+                    }
+                    })
+                    {
+                        ResizeKeyboard = true
+                    };
+
+
+                    await _botClient.SendMessage(
+                    chatId: chatId,
+                    text: "Выберите действие:",
+                    replyMarkup: replyKeyboard,
+                    cancellationToken: ct);
                 }
                 else
                 {

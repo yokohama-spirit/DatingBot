@@ -21,40 +21,47 @@ namespace DatingBotLibrary.Infrastructure.Repos
             _conn = conn;
         }
 
-        public async Task<List<Profile>> GetProfiles(long chatId)
+        public async Task<List<Profile>> GetLikesProfiles(long chatId)
         {
-            // Получаем профиль пользователя
             var userProfile = await _conn.Profiles
                 .FirstOrDefaultAsync(p => p.ChatId == chatId);
 
             if (userProfile == null)
                 return new List<Profile>();
 
-            // Получаем все профили (кроме своего) в память
-            var allProfiles = await _conn.Profiles
+
+            var profiles = await _conn.Profiles
                 .Where(p => p.ChatId != chatId)
+                .Where(p => p.Likes.Contains(chatId))
+                .OrderBy(_ => Guid.NewGuid())
                 .Include(p => p.Photos)
                 .Include(p => p.Videos)
-                .AsNoTracking()
                 .ToListAsync();
 
-            // Фильтруем в памяти
-            var normalizedCity = userProfile.City?
-                .Replace(" ", "")
-                .Trim()
-                .ToLowerInvariant();
+            return profiles;
+        }
 
-            var matchingProfiles = allProfiles
+        public async Task<List<Profile>> GetProfiles(long chatId)
+        {
+            var userProfile = await _conn.Profiles
+                .FirstOrDefaultAsync(p => p.ChatId == chatId);
+
+            if (userProfile == null)
+                return new List<Profile>();
+
+
+            var profiles = await _conn.Profiles
+                .Where(p => p.ChatId != chatId)
                 .Where(p => p.Gender == userProfile.InInterests)
                 .Where(p => Math.Abs(p.Age - userProfile.Age) <= 2)
-                .Where(p =>
-                    string.IsNullOrEmpty(normalizedCity) ||
-                    (p.City != null &&
-                     p.City.Replace(" ", "").Trim().ToLowerInvariant() == normalizedCity))
-                .OrderBy(_ => Guid.NewGuid()) // Рандомный порядок
-                .ToList();
+                .Where(p => p.City != null && userProfile.City != null &&
+                    p.City.Replace(" ", "").ToLower() == userProfile.City.Replace(" ", "").ToLower())
+                .OrderBy(_ => Guid.NewGuid())
+                .Include(p => p.Photos)
+                .Include(p => p.Videos)
+                .ToListAsync();
 
-            return matchingProfiles;
+            return profiles;
         }
     }
 }

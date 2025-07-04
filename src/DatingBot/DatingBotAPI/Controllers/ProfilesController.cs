@@ -15,7 +15,6 @@ namespace DatingBotAPI.Controllers
     {
         private readonly IProfileRepository _rep;
         private readonly IProfilesSearchRepository _search;
-        private readonly DatabaseConnect _context;
 
         public ProfilesController
             (IProfileRepository rep,
@@ -24,7 +23,6 @@ namespace DatingBotAPI.Controllers
         {
             _rep = rep;
             _search = search;
-            _context = conn;
         }
 
 
@@ -70,31 +68,7 @@ namespace DatingBotAPI.Controllers
         {
             try
             {
-                // 1. Получаем профиль пользователя
-                var userProfile = await _context.Profiles
-                    .FirstOrDefaultAsync(p => p.ChatId == chatId);
-
-                if (userProfile == null)
-                    return Ok(Array.Empty<Profile>());
-
-
-                var profiles = await _context.Profiles
-                    .Where(p => p.ChatId != chatId) 
-                    .Where(p => p.Gender == userProfile.InInterests) 
-                    .Where(p => Math.Abs(p.Age - userProfile.Age) <= 2)
-                    .Where(p => p.City != null && userProfile.City != null &&
-                        p.City.Replace(" ", "").ToLower() == userProfile.City.Replace(" ", "").ToLower())
-                    .OrderBy(_ => Guid.NewGuid())
-                    .Include(p => p.Photos)
-                    .Include(p => p.Videos)
-                    .ToListAsync();
-
-
-
-                foreach (var p in profiles)
-                {
-                    Console.WriteLine($"Match: {p.Name}, {p.Age}, {p.City}, Gender: {p.Gender}, Interests: {p.InInterests}");
-                }
+                var profiles = await _search.GetProfiles(chatId);
 
                 return new JsonResult(profiles, new JsonSerializerOptions
                 {
@@ -108,6 +82,7 @@ namespace DatingBotAPI.Controllers
                 return Ok(Array.Empty<Profile>());
             }
         }
+
         [HttpGet]
         public async Task<IActionResult> All()
         {

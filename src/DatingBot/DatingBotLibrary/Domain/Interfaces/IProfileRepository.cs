@@ -13,5 +13,8 @@ namespace DatingBotLibrary.Domain.Interfaces
         Task CreateProfile(Profile profile);
 
         Task<IEnumerable<Profile>> GetAllProfiles();
+        
+        Task DeleteProfileLike(long myId, long likeId);
+        Task UpdateProfileForLike(long myId, long likeId);
     }
 }

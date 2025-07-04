@@ -71,5 +71,21 @@ namespace DatingBotLibrary.Infrastructure.Repos
                 .Include(p => p.Videos)
                 .ToListAsync();
         }
+
+        public async Task UpdateProfileForLike(long myId, long likeId)
+        {
+            var profile = await CheckMyProfile(myId);
+
+            profile.Likes.Add(likeId);
+            await _conn.SaveChangesAsync();
+        }
+
+        public async Task DeleteProfileLike(long myId, long likeId)
+        {
+            var profile = await CheckMyProfile(likeId);
+
+            profile.Likes.Remove(myId);
+            await _conn.SaveChangesAsync();
+        }
     }
 }

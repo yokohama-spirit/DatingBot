@@ -18,6 +18,7 @@ namespace DatingBotLibrary.Domain.Entities
         public string? Bio { get; set; }
         public Gender? Gender { get; set; }
         public Gender? InInterests { get; set; }
+        public List<long> Likes { get; set; } = new();
         public List<Photo> Photos { get; set; } = new();
         public List<Video> Videos { get; set; } = new();
     }
