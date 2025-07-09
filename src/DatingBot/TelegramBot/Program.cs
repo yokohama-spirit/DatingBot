@@ -22,6 +22,9 @@ var botConfig = new TelegramBotConfig
 builder.Services.AddSingleton(botConfig);
 builder.Services.AddSingleton<ITelegramBotService, TelegramBotService>();
 builder.Services.AddSingleton<IFrozenService, FrozenService>();
+builder.Services.AddSingleton<IStartService, StartService>();
+
+
 
 var app = builder.Build();
 

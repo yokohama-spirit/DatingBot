@@ -1,5 +1,4 @@
-﻿using DatingBotLibrary.Domain.Entities;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -7,8 +6,8 @@ using System.Threading.Tasks;
 
 namespace DatingBotLibrary.Domain.Interfaces
 {
-    public interface IProfilesSearchRepository
+    public interface IStartRepository
     {
-        Task<List<Profile>> GetProfiles(long chatId);
+        Task<bool> isExistsProfile(long chatId);
     }
 }

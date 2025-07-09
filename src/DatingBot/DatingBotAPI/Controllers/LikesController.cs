@@ -28,7 +28,7 @@ namespace DatingBotAPI.Controllers
         {
             try
             {
-                var profiles = await _search.GetLikesProfiles(chatId);
+                var profiles = await _search.GetProfiles(chatId);
 
                 return new JsonResult(profiles, new JsonSerializerOptions
                 {

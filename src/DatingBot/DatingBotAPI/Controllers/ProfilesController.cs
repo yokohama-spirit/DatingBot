@@ -15,14 +15,17 @@ namespace DatingBotAPI.Controllers
     {
         private readonly IProfileRepository _rep;
         private readonly IProfilesSearchRepository _search;
+        private readonly IStartRepository _start;
 
         public ProfilesController
             (IProfileRepository rep,
             IProfilesSearchRepository search,
-            DatabaseConnect conn)
+            DatabaseConnect conn,
+            IStartRepository start)
         {
             _rep = rep;
             _search = search;
+            _start = start;
         }
 
 
@@ -99,12 +102,20 @@ namespace DatingBotAPI.Controllers
         }
 
 
-        [HttpPost("set")]
-        public async Task<IActionResult> SetMany()
+        [HttpGet("ise/{chatId}")]
+        public async Task<ActionResult<bool>> isExists(long chatId)
         {
-            await _rep.SetPeople();
-            return Ok();
+            try
+            {
+                var result = await _start.isExistsProfile(chatId);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Ошибка: {ex}");
+            }
         }
+
 
         [HttpGet]
         public async Task<IActionResult> All()

@@ -21,6 +21,7 @@ namespace TelegramBot.Services
         private readonly TelegramBotConfig _config;
         private readonly HttpClient _httpClient;
         private readonly IFrozenService _frozen;
+        private readonly IStartService _start;
         private readonly Dictionary<long, CreateProfileState> _state;
         private readonly Dictionary<long, List<Profile>> _datingProfiles;
         private readonly Dictionary<long, Profile> _likes;
@@ -29,12 +30,14 @@ namespace TelegramBot.Services
 
         public TelegramBotService
             (TelegramBotConfig config,
-            IFrozenService frozen)
+            IFrozenService frozen,
+            IStartService start)
         {
             _config = config;
             _botClient = new TelegramBotClient(_config.Token);
             _httpClient = new HttpClient { BaseAddress = new Uri(_config.ApiBaseUrl) };
             _frozen = frozen;
+            _start = start;
             _state = new Dictionary<long, CreateProfileState>();
             _datingProfiles = new Dictionary<long, List<Profile>>();
             _checkLikes = new Dictionary<long, List<Profile>>();
@@ -92,7 +95,7 @@ namespace TelegramBot.Services
                             cancellationToken: ct);
                         return;
                     }
-                    else if(isFrozen && message.Text == "Разморозить анкету 😴")
+                    else if (isFrozen && message.Text == "Разморозить анкету 😴")
                     {
                         await _frozen.UnfrozenHandle(chatId, ct);
                         return;
@@ -110,7 +113,14 @@ namespace TelegramBot.Services
                     {
                         case "/start":
                         case "Главное меню":
-                            await HandleStartCommand(chatId, ct);
+                            if (await _start.ProfileChecker(chatId, ct))
+                            {
+                                await SendUserProfile(chatId, ct);
+                            }
+                            else
+                            {
+                                await HandleStartCommand(chatId, ct);
+                            }
                             break;
 
                         case "☃️ Создать анкету":
@@ -186,7 +196,7 @@ namespace TelegramBot.Services
 
                             var replyStopKeyboard = new ReplyKeyboardMarkup(new[]
                             {
-                            new[] 
+                            new[]
                             {
                             new KeyboardButton("🚀 Смотреть анкеты"),
                             new KeyboardButton("👤 Моя анкета"),
@@ -392,7 +402,7 @@ namespace TelegramBot.Services
 
                     var putResponse = await _httpClient.PutAsync(
                         $"/api/likes/u/{chatId}/{profile.ChatId}",
-                        null,  
+                        null,
                         ct);
 
                     if (putResponse.IsSuccessStatusCode)
@@ -401,7 +411,7 @@ namespace TelegramBot.Services
                             chatId: chatId,
                             text: "Лайк поставлен!",
                             cancellationToken: ct);
-                            _likes.Remove(chatId); 
+                        _likes.Remove(chatId);
                     }
                     else
                     {
@@ -425,7 +435,7 @@ namespace TelegramBot.Services
 
                 var replyKeyboard = new ReplyKeyboardMarkup(new[]
                 {
-                    new[] 
+                    new[]
                     {
                     new KeyboardButton("Посмотреть"),
                     new KeyboardButton("Неинтересно")
@@ -629,7 +639,7 @@ namespace TelegramBot.Services
 
 
                 var deleteResponse = await _httpClient.PutAsync(
-                    $"/api/likes/d/{currentUser.UserId}/{profile.UserId}",  
+                    $"/api/likes/d/{currentUser.UserId}/{profile.UserId}",
                     null,
                     ct);
 
@@ -767,7 +777,7 @@ namespace TelegramBot.Services
             })
             {
                 ResizeKeyboard = true,
-                OneTimeKeyboard = false 
+                OneTimeKeyboard = false
             };
 
             Console.WriteLine(chatId);
@@ -820,7 +830,7 @@ namespace TelegramBot.Services
                     chatId: chatId,
                     text: "Сколько вам лет?",
                     cancellationToken: ct);
-                    
+
                     break;
 
                 case 2 when int.TryParse(text, out var count):
@@ -1117,7 +1127,7 @@ namespace TelegramBot.Services
                         await CreationFinalStep(
                             state.Name, state.Age, state.City,
                             state.Desc, userId, chatId,
-                            state.PhotoFileId, state.VideoFileId, 
+                            state.PhotoFileId, state.VideoFileId,
                             state.Gender, state.InInterests, ct);
                     }
                     else if (message.Type == MessageType.Photo && message.Photo != null && message.Photo.Length > 0)
@@ -1183,7 +1193,7 @@ namespace TelegramBot.Services
 
             if (pfileIds != null)
             {
-                foreach(var fileId in pfileIds)
+                foreach (var fileId in pfileIds)
                 {
                     command.Photos.Add(new Photo { FileId = fileId });
                 }
@@ -1230,9 +1240,9 @@ namespace TelegramBot.Services
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
                 Console.WriteLine($"[API ERROR] StatusCode: {(int)response.StatusCode}, Content: {errorContent}");
-                
+
                 var removeKeyboard = new ReplyKeyboardRemove();
-                
+
                 await _botClient.SendMessage(
                     chatId: chatId,
                     text: "❌ Ошибка при добавлении",
@@ -1453,12 +1463,12 @@ namespace TelegramBot.Services
             _likes.Remove(chatId);
             _mutually.Remove(chatId);
 
-/*            await _botClient.SendMessage(
-                chatId: chatId,
-                text: "❌ Прошлая команда отменена.\n" +
-                "Для использования новой команды пропишите ее еще раз.",
-                replyMarkup: new ReplyKeyboardRemove(),
-                cancellationToken: ct);*/
+            /*            await _botClient.SendMessage(
+                            chatId: chatId,
+                            text: "❌ Прошлая команда отменена.\n" +
+                            "Для использования новой команды пропишите ее еще раз.",
+                            replyMarkup: new ReplyKeyboardRemove(),
+                            cancellationToken: ct);*/
         }
     }
 }

@@ -21,25 +21,6 @@ namespace DatingBotLibrary.Infrastructure.Repos
             _conn = conn;
         }
 
-        public async Task<List<Profile>> GetLikesProfiles(long chatId)
-        {
-            var userProfile = await _conn.Profiles
-                .FirstOrDefaultAsync(p => p.ChatId == chatId);
-
-            if (userProfile == null)
-                return new List<Profile>();
-
-
-            var profiles = await _conn.Profiles
-                .Where(p => p.ChatId != chatId)
-                .Where(p => p.Likes.Contains(chatId))
-                .OrderBy(_ => Guid.NewGuid())
-                .Include(p => p.Photos)
-                .Include(p => p.Videos)
-                .ToListAsync();
-
-            return profiles;
-        }
 
         public async Task<List<Profile>> GetProfiles(long chatId)
         {
