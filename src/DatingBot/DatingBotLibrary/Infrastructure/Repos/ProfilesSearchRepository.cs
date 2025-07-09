@@ -52,6 +52,7 @@ namespace DatingBotLibrary.Infrastructure.Repos
 
             var profiles = await _conn.Profiles
                 .Where(p => p.ChatId != chatId)
+                .Where(p => p.isFrozen == false)
                 .Where(p => p.Gender == userProfile.InInterests)
                 .Where(p => Math.Abs(p.Age - userProfile.Age) <= 2)
                 .Where(p => p.City != null && userProfile.City != null &&

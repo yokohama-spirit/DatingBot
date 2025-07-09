@@ -87,5 +87,53 @@ namespace DatingBotLibrary.Infrastructure.Repos
             profile.Likes.Remove(myId);
             await _conn.SaveChangesAsync();
         }
+        
+        public async Task<bool> MakeMeFrozen(long chatId)
+        {
+            var profile = await CheckMyProfile(chatId);
+
+            if (profile.isFrozen == false)
+            {
+                profile.isFrozen = true;
+                await _conn.SaveChangesAsync();
+                return true;
+            }
+            return false;
+        }
+
+        public async Task<bool> MakeMeUnfrozen(long chatId)
+        {
+            var profile = await CheckMyProfile(chatId);
+
+            if(profile.isFrozen == true)
+            {
+                profile.isFrozen = false;
+                await _conn.SaveChangesAsync();
+                return true;
+            }
+            return false;
+        }
+
+
+        public async Task SetPeople()
+        {
+            for (var i = 0; i < 2500; i++)
+            {
+                var profile = new Profile
+                {
+                    UserId = i,
+                    ChatId = i,
+                    Name = "Телка",
+                    Age = 20,
+                    City = "Москва",
+                    Gender = Domain.Entities.Enum.Gender.Female,
+                    InInterests = Domain.Entities.Enum.Gender.Male,
+                    Bio = "Не указано"
+                };
+
+                await CreateProfile(profile);
+            }
+        }
+
     }
 }

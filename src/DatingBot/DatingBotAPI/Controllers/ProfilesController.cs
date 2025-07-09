@@ -83,6 +83,29 @@ namespace DatingBotAPI.Controllers
             }
         }
 
+
+        [HttpGet("unfrozen/{chatId}")]
+        public async Task<ActionResult<bool>> MakeMeUnfrozen(long chatId)
+        {
+            var result = await _rep.MakeMeUnfrozen(chatId);
+            return Ok(result);
+        }
+
+        [HttpGet("frozen/{chatId}")]
+        public async Task<ActionResult<bool>> MakeMeFrozen(long chatId)
+        {
+            var result = await _rep.MakeMeFrozen(chatId);
+            return Ok(result);
+        }
+
+
+        [HttpPost("set")]
+        public async Task<IActionResult> SetMany()
+        {
+            await _rep.SetPeople();
+            return Ok();
+        }
+
         [HttpGet]
         public async Task<IActionResult> All()
         {

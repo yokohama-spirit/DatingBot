@@ -20,6 +20,7 @@ namespace TelegramBot.Services
         private readonly ITelegramBotClient _botClient;
         private readonly TelegramBotConfig _config;
         private readonly HttpClient _httpClient;
+        private readonly IFrozenService _frozen;
         private readonly Dictionary<long, CreateProfileState> _state;
         private readonly Dictionary<long, List<Profile>> _datingProfiles;
         private readonly Dictionary<long, Profile> _likes;
@@ -27,11 +28,13 @@ namespace TelegramBot.Services
         private readonly Dictionary<long, List<Profile>> _checkLikes;
 
         public TelegramBotService
-            (TelegramBotConfig config)
+            (TelegramBotConfig config,
+            IFrozenService frozen)
         {
             _config = config;
             _botClient = new TelegramBotClient(_config.Token);
             _httpClient = new HttpClient { BaseAddress = new Uri(_config.ApiBaseUrl) };
+            _frozen = frozen;
             _state = new Dictionary<long, CreateProfileState>();
             _datingProfiles = new Dictionary<long, List<Profile>>();
             _checkLikes = new Dictionary<long, List<Profile>>();
@@ -68,6 +71,34 @@ namespace TelegramBot.Services
                 if (update.Message is { } message)
                 {
                     long chatId = message.Chat.Id;
+
+                    var isFrozen = await _frozen.IsFrozen(chatId, ct);
+
+                    if (isFrozen && message.Text != "Разморозить анкету 😴")
+                    {
+
+                        var replyKeyboard = new ReplyKeyboardMarkup(new[]
+                        {
+                        new KeyboardButton[] { "Разморозить анкету 😴" }
+                        })
+                        {
+                            ResizeKeyboard = true
+                        };
+
+                        await _botClient.SendMessage(
+                            chatId: chatId,
+                            text: "Для начала разморозьте свою анкету!",
+                            replyMarkup: replyKeyboard,
+                            cancellationToken: ct);
+                        return;
+                    }
+                    else if(isFrozen && message.Text == "Разморозить анкету 😴")
+                    {
+                        await _frozen.UnfrozenHandle(chatId, ct);
+                        return;
+                    }
+
+
 
                     if (_state.TryGetValue(chatId, out var state))
                     {
@@ -111,6 +142,29 @@ namespace TelegramBot.Services
                             await StartLikesViewing(chatId, ct);
                             break;
 
+                        case "Неинтересно":
+
+                            var replyKeyboard = new ReplyKeyboardMarkup(new[]
+{
+                            new[]
+                            {
+                            new KeyboardButton("🚀 Смотреть анкеты"),
+                            new KeyboardButton("👤 Моя анкета"),
+                            new KeyboardButton("💤")
+                            }
+                            })
+                            {
+                                ResizeKeyboard = true
+                            };
+
+                            await _botClient.SendMessage(
+                            chatId: chatId,
+                            text: "Выберите действие:",
+                            replyMarkup: replyKeyboard,
+                            cancellationToken: ct);
+                            break;
+
+
                         case "❤️ Взаимно":
                             await MutuallyHandler(chatId, ct);
                             await ShowLikesProfiles(chatId, ct);
@@ -120,14 +174,23 @@ namespace TelegramBot.Services
                             await NonMutuallyHandler(chatId, ct);
                             break;
 
+                        case "Разморозить анкету 😴":
+                            await _frozen.UnfrozenHandle(chatId, ct);
+                            break;
+
+                        case "💤":
+                            await _frozen.FrozenHandle(chatId, ct);
+                            break;
+
                         case "🚫 Прекратить просмотр":
 
-                            var replyMediaKeyboard = new ReplyKeyboardMarkup(new[]
+                            var replyStopKeyboard = new ReplyKeyboardMarkup(new[]
                             {
                             new[] 
                             {
                             new KeyboardButton("🚀 Смотреть анкеты"),
-                            new KeyboardButton("👤 Моя анкета")
+                            new KeyboardButton("👤 Моя анкета"),
+                            new KeyboardButton("💤")
                             }
                             })
                             {
@@ -143,7 +206,7 @@ namespace TelegramBot.Services
                             await _botClient.SendMessage(
                             chatId: chatId,
                             text: "Выберите действие:",
-                            replyMarkup: replyMediaKeyboard,
+                            replyMarkup: replyStopKeyboard,
                             cancellationToken: ct);
                             break;
 
@@ -212,9 +275,23 @@ namespace TelegramBot.Services
         {
             if (!_datingProfiles.TryGetValue(chatId, out var profiles) || !profiles.Any())
             {
+                var replyKeyboard = new ReplyKeyboardMarkup(new[]
+{
+                new[]
+                {
+                new KeyboardButton("🚀 Смотреть анкеты"),
+                new KeyboardButton("👤 Моя анкета"),
+                new KeyboardButton("💤")
+                }
+                })
+                {
+                    ResizeKeyboard = true
+                };
+
                 await _botClient.SendMessage(
                     chatId: chatId,
                     text: "Анкеты закончились",
+                    replyMarkup: replyKeyboard,
                     cancellationToken: ct);
                 return;
             }
@@ -436,7 +513,8 @@ namespace TelegramBot.Services
                 new[]
                 {
                 new KeyboardButton("🚀 Смотреть анкеты"),
-                new KeyboardButton("👤 Моя анкета")
+                new KeyboardButton("👤 Моя анкета"),
+                new KeyboardButton("💤")
                 }
                 })
                 {
@@ -723,6 +801,8 @@ namespace TelegramBot.Services
         }
         public async Task HandleCreateInputCommand(long chatId, Message message, CancellationToken ct)
         {
+            await StateCleaner(message.Text, chatId, ct);
+
             if (!_state.TryGetValue(chatId, out var state))
                 return;
 
@@ -1221,12 +1301,13 @@ namespace TelegramBot.Services
 
                     var replyKeyboard = new ReplyKeyboardMarkup(new[]
                     {
-                    new[]
-                    {
-                    new KeyboardButton("🚀 Смотреть анкеты"),
-                    new KeyboardButton("📝 Заполнить анкету заново")
-                    }
-                    })
+                            new[]
+                            {
+                            new KeyboardButton("🚀 Смотреть анкеты"),
+                            new KeyboardButton("📝 Заполнить анкету заново"),
+                            new KeyboardButton("💤")
+                            }
+                            })
                     {
                         ResizeKeyboard = true
                     };
@@ -1275,6 +1356,109 @@ namespace TelegramBot.Services
             return Task.CompletedTask;
         }
 
+        private async Task StateCleaner(string text, long chatId, CancellationToken ct)
+        {
+            bool textIsCommand = text == "/start"
+                             || text == "Главное меню"
+                             || text == "☃️ Создать анкету"
+                             || text == "📝 Заполнить анкету заново"
+                             || text == "👤 Моя анкета"
+                             || text == "🚀 Смотреть анкеты"
+                             || text == "❤️ Лайк"
+                             || text == "👎 Дизлайк"
+                             || text == "Посмотреть"
+                             || text == "❤️ Взаимно"
+                             || text == "💔 Невзаимно"
+                             || text == "Разморозить анкету 😴"
+                             || text == "💤"
+                             || text == "🚫 Прекратить просмотр";
 
+            if (textIsCommand)
+            {
+                await ClearAllStates(chatId, ct);
+
+                // Вызываем соответствующую команду
+                switch (text)
+                {
+                    case "/start":
+                    case "Главное меню":
+                        await HandleStartCommand(chatId, ct);
+                        break;
+                    case "☃️ Создать анкету":
+                    case "📝 Заполнить анкету заново":
+                        await HandleCreateCommand(chatId, ct);
+                        break;
+                    case "👤 Моя анкета":
+                        await SendUserProfile(chatId, ct);
+                        break;
+                    case "🚀 Смотреть анкеты":
+                        await StartProfileViewing(chatId, ct);
+                        break;
+                    case "❤️ Лайк":
+                        await LikesHandler(chatId, ct);
+                        await ShowRandomProfile(chatId, ct);
+                        break;
+                    case "👎 Дизлайк":
+                        await ShowRandomProfile(chatId, ct);
+                        break;
+                    case "Посмотреть":
+                        await StartLikesViewing(chatId, ct);
+                        break;
+                    case "❤️ Взаимно":
+                        await MutuallyHandler(chatId, ct);
+                        await ShowLikesProfiles(chatId, ct);
+                        break;
+                    case "💔 Невзаимно":
+                        await NonMutuallyHandler(chatId, ct);
+                        break;
+                    case "Разморозить анкету 😴":
+                        await _frozen.UnfrozenHandle(chatId, ct);
+                        break;
+                    case "💤":
+                        await _frozen.FrozenHandle(chatId, ct);
+                        break;
+                    case "🚫 Прекратить просмотр":
+                        var replyMediaKeyboard = new ReplyKeyboardMarkup(new[]
+                        {
+                    new[]
+                    {
+                        new KeyboardButton("🚀 Смотреть анкеты"),
+                        new KeyboardButton("👤 Моя анкета"),
+                        new KeyboardButton("💤")
+                    }
+                    })
+                        {
+                            ResizeKeyboard = true
+                        };
+                        await _botClient.SendMessage(
+                            chatId: chatId,
+                            text: "Просмотр анкет завершен",
+                            replyMarkup: new ReplyKeyboardRemove(),
+                            cancellationToken: ct);
+                        await _botClient.SendMessage(
+                            chatId: chatId,
+                            text: "Выберите действие:",
+                            replyMarkup: replyMediaKeyboard,
+                            cancellationToken: ct);
+                        break;
+                }
+            }
+        }
+
+        private async Task ClearAllStates(long chatId, CancellationToken ct)
+        {
+            _state.Remove(chatId);
+            _datingProfiles.Remove(chatId);
+            _checkLikes.Remove(chatId);
+            _likes.Remove(chatId);
+            _mutually.Remove(chatId);
+
+/*            await _botClient.SendMessage(
+                chatId: chatId,
+                text: "❌ Прошлая команда отменена.\n" +
+                "Для использования новой команды пропишите ее еще раз.",
+                replyMarkup: new ReplyKeyboardRemove(),
+                cancellationToken: ct);*/
+        }
     }
 }
