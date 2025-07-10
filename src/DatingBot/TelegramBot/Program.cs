@@ -1,29 +1,49 @@
+using DatingBotLibrary.Domain.Entities;
+using Telegram.Bot;
 using TelegramBot.Config;
+using TelegramBot.Config.State;
 using TelegramBot.Interfaces;
+using TelegramBot.Interfaces.Other;
 using TelegramBot.Services;
+using TelegramBot.Services.Other;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Bot config
-var botConfig = new TelegramBotConfig
-{
-    Token = builder.Configuration["TelegramBotConfig:Token"],
-    ApiBaseUrl = builder.Configuration["TelegramBotConfig:ApiBaseUrl"]
-};
-
-// DI
+//config
+var botConfig = builder.Configuration.GetSection("TelegramBotConfig").Get<TelegramBotConfig>();
 builder.Services.AddSingleton(botConfig);
-builder.Services.AddSingleton<ITelegramBotService, TelegramBotService>();
+
+//HTTP-client
+builder.Services.AddHttpClient("BotApi", client =>
+{
+    client.BaseAddress = new Uri(botConfig.ApiBaseUrl);
+});
+
+
+builder.Services.AddSingleton<ITelegramBotClient>(_ =>
+    new TelegramBotClient(botConfig.Token));
+
+
+
+//DI
 builder.Services.AddSingleton<IFrozenService, FrozenService>();
 builder.Services.AddSingleton<IStartService, StartService>();
-
+builder.Services.AddSingleton<ILikesService, LikesService>();
+builder.Services.AddSingleton<IProfilesService, ProfilesService>();
+builder.Services.AddSingleton<IHandleStartCommand, HandleStartCommand>();
+builder.Services.AddSingleton<ICreateProfileService, CreateProfileService>();
+builder.Services.AddSingleton<ITelegramBotService, TelegramBotService>();
+//-----------------------------DICTIONARIES------------------------------
+builder.Services.AddKeyedSingleton<Dictionary<long, CreateProfileState>>("state");
+builder.Services.AddKeyedSingleton<Dictionary<long, List<Profile>>>("datingProfiles");
+builder.Services.AddKeyedSingleton<Dictionary<long, List<Profile>>>("checkLikes");
+builder.Services.AddKeyedSingleton<Dictionary<long, Profile>>("likes");
+builder.Services.AddKeyedSingleton<Dictionary<long, Profile>>("mutually");
 
 
 var app = builder.Build();
@@ -35,15 +55,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// Bot start
+// bot start
 var botService = app.Services.GetRequiredService<ITelegramBotService>();
 var cts = new CancellationTokenSource();
 await botService.StartAsync(cts.Token);
 
 app.UseHttpsRedirection();
-
 app.UseAuthorization();
-
 app.MapControllers();
-
 app.Run();

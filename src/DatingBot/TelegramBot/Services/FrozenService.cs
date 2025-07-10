@@ -1,9 +1,7 @@
 ﻿using DatingBotLibrary.Domain.Entities;
 using Telegram.Bot;
-using TelegramBot.Config.State;
 using TelegramBot.Config;
 using TelegramBot.Interfaces;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 using System.Text.Json.Serialization;
 using System.Text.Json;
 using Telegram.Bot.Types.ReplyMarkups;

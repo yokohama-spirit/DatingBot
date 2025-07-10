@@ -63,7 +63,7 @@ namespace DatingBotLibrary.Migrations
                     b.Property<int?>("InInterests")
                         .HasColumnType("integer");
 
-                    b.PrimitiveCollection<List<long>>("Likes")
+                    b.PrimitiveCollection<HashSet<long>>("Likes")
                         .IsRequired()
                         .HasColumnType("bigint[]");
 

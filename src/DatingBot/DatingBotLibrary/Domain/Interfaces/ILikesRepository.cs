@@ -1,0 +1,14 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace DatingBotLibrary.Domain.Interfaces
+{
+    public interface ILikesRepository
+    {
+        Task UpdateProfileForLike(long myId, long likeId);
+        Task DeleteProfileLike(long myId, long likeId);
+    }
+}

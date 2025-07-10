@@ -29,7 +29,7 @@ namespace DatingBotAPI.Controllers
         }
 
 
-
+        // Method for creating a profile
         [HttpPost]
         public async Task<IActionResult> CreateProfile([FromBody] Profile command)
         {
@@ -50,6 +50,7 @@ namespace DatingBotAPI.Controllers
         }
 
 
+        // Method for getting your own profile
         [HttpGet("{chatId}")]
         public async Task<ActionResult<Profile>> CheckMyProfile(long chatId)
         {
@@ -65,7 +66,7 @@ namespace DatingBotAPI.Controllers
         }
 
 
-
+        // Method for obtaining user-appropriate profiles
         [HttpGet("s/{chatId}")]
         public async Task<IActionResult> GetMatchingProfiles(long chatId)
         {
@@ -87,6 +88,7 @@ namespace DatingBotAPI.Controllers
         }
 
 
+        // Method for defrosting a profile
         [HttpGet("unfrozen/{chatId}")]
         public async Task<ActionResult<bool>> MakeMeUnfrozen(long chatId)
         {
@@ -94,6 +96,8 @@ namespace DatingBotAPI.Controllers
             return Ok(result);
         }
 
+
+        // Method for freezing a profile
         [HttpGet("frozen/{chatId}")]
         public async Task<ActionResult<bool>> MakeMeFrozen(long chatId)
         {
@@ -102,6 +106,7 @@ namespace DatingBotAPI.Controllers
         }
 
 
+        // Method with checking the existence of the current user profile
         [HttpGet("ise/{chatId}")]
         public async Task<ActionResult<bool>> isExists(long chatId)
         {
@@ -114,14 +119,6 @@ namespace DatingBotAPI.Controllers
             {
                 return BadRequest($"Ошибка: {ex}");
             }
-        }
-
-
-        [HttpGet]
-        public async Task<IActionResult> All()
-        {
-            var result = await _rep.GetAllProfiles();
-            return Ok(result);
         }
     }
 }

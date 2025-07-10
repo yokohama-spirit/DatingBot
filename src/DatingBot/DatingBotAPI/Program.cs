@@ -26,6 +26,7 @@ builder.Services.AddDbContext<DatabaseConnect>(options =>
 builder.Services.AddScoped<IProfileRepository, ProfileRepository>();
 builder.Services.AddScoped<IProfilesSearchRepository, ProfilesSearchRepository>();
 builder.Services.AddScoped<IStartRepository, StartRepository>();
+builder.Services.AddScoped<ILikesRepository, LikesRepository>();
 
 
 
