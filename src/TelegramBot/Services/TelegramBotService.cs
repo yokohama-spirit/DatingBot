@@ -251,32 +251,6 @@ namespace TelegramBot.Services
             }
         }
 
-        //--------------------------------------START COMMAND------------------------------------------
-
-        public async Task HandleStartCommand(long chatId, CancellationToken ct)
-        {
-            var chat = await _botClient.GetChat(chatId, ct);
-
-
-            var replyKeyboard = new ReplyKeyboardMarkup(new[]
-            {
-            new KeyboardButton[] { "☃️ Создать анкету", "👤 Моя анкета" }
-            })
-            {
-                ResizeKeyboard = true,
-                OneTimeKeyboard = false
-            };
-
-            Console.WriteLine(chatId);
-
-
-            await _botClient.SendMessage(
-                chatId: chatId,
-                text: $"Привет, {chat.FirstName ?? "друг"}! Я - бот для знакомств!",
-                replyMarkup: replyKeyboard,
-                cancellationToken: ct);
-        }
-
         //--------------------------------------DEFAULT------------------------------------------
 
         public async Task HandleDefaultCommand(long chatId, CancellationToken ct)
